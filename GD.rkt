@@ -63,9 +63,7 @@
   (test-equal (insert-priv (list s1 r1 o0) m1) m3)
   (test-equal (insert-priv (list s1 'own o2) m1) m2)
   (test-equal (insert-priv (list s0 'own o3) m2) m4)
-  )
-
-
+)
 
 (define st1
   (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m1)))
@@ -81,14 +79,151 @@
 
 
 (define red
-  (reduction-relation
-   GD
-   (--> (st natural_1 natural_2 S O R M_1)
-        (st natural_1 natural_2 S O R M_2)
-        (where (Priv_1 ... (Sub_1 (trans BR) Obj) Priv_2 ...) M_1)
-        (where (Sub_3 ... Sub_2 Sub_4 ...) S)
-        (where M_2 ,(insert-priv (term (Sub_2 BR Obj)) (term M_1)))
-        (computed-name (term (transfer BR Sub_1 Sub_2 Obj))))
+  (reduction-relation GD
+  ; NOTES:
+  ; (--> {Original state} {Resulting state} {pattern matching} )
+  ; (st {Subject count} {PObj count} S O R M)
+
+  ; <------------------------- BEGIN: Basic Rights ------------------------->
+  ; grant_r (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that owns Obj (o)
+       (where (Priv_1 ... (Sub_1 own Obj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s)
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       ; Find a BR in R (r) to grant
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Insert priv to new matrix M_2
+       (where M_2 ,(insert-priv (term (Sub_2 BR Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (grant BR Sub_1 Sub_2 Obj)))
+  )
+  
+  ; delete_r [OWN] (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that owns Obj (o)
+       (where (Priv_1 ... (Sub_1 own Obj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s) 
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       ; Find a BR in R (r) to delete
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Remove priv from the matrix, assign it to M_2
+       (where M_2 ,(remove (term (Sub_2 BR Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (remove_own BR Sub_1 Sub_2 Obj)))
+  )
+
+  ; delete_r [CONTROL] (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that controls Sub_2 (s)
+       (where (Priv_1 ... (Sub_1 control Sub_2) Priv_2 ...) M_1)
+       ; Find any Obj (o)
+       (where (Obj_1 ... Obj Obj_2 ...) O)
+       ; Find a BR in R (r) to delete
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Remove priv from the matrix, assign it to M_2
+       (where M_2 ,(remove (term (Sub_2 BR Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (remove_control BR Sub_1 Sub_2 Obj)))
+  )
+
+  ; transfer_r(i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       (where (Priv_1 ... (Sub_1 (trans BR) Obj) Priv_2 ...) M_1)
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       (where M_2 ,(insert-priv (term (Sub_2 BR Obj)) (term M_1)))
+       (computed-name (term (transfer BR Sub_1 Sub_2 Obj)))
+  )
+
+  ; <------------------------- BEGIN: Basic TR Rights ------------------------->
+  ; grant_r* (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that owns Obj (o)
+       (where (Priv_1 ... (Sub_1 own Obj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s)
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       ; Find a BR in R (r) to grant
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Insert priv to new matrix M_2
+       (where M_2 ,(insert-priv (term (Sub_2 (trans BR) Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (grant (trans BR) Sub_1 Sub_2 Obj)))
+  )
+  
+  ; delete_r* [OWN] (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that owns Obj (o)
+       (where (Priv_1 ... (Sub_1 own Obj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s) 
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       ; Find a BR in R (r) to delete
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Remove priv from the matrix, assign it to M_2
+       (where M_2 ,(remove (term (Sub_2 (trans BR) Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (remove_own (trans BR) Sub_1 Sub_2 Obj)))
+  )
+
+  ; delete_r* [CONTROL] (i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that controls Sub_2 (s)
+       (where (Priv_1 ... (Sub_1 control Sub_2) Priv_2 ...) M_1)
+       ; Find any Obj (o)
+       (where (Obj_1 ... Obj Obj_2 ...) O)
+       ; Find a BR in R (r) to delete
+       (where (BR_1 ... BR BR_2 ...) R)
+
+       ; Remove priv from the matrix, assign it to M_2
+       (where M_2 ,(remove (term (Sub_2 (trans BR) Obj)) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (remove_control (trans BR) Sub_1 Sub_2 Obj)))
+  )
+
+  ; transfer_r*(i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find a Sub_1 (i) that has the r* to Obj (o)
+       (where (Priv_1 ... (Sub_1 (trans BR) Obj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s)
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       
+       ; Insert priv, assign it to M_2
+       (where M_2 ,(insert-priv (term (Sub_2 (trans BR) Obj)) (term M_1)))
+
+       (computed-name (term (transfer (trans BR) Sub_1 Sub_2 Obj)))
+  )
+
+  ; <------------------------- BEGIN: Administrative Rights ------------------------->
+  
+
+  ; <------------------------- BEGIN: Create/Destroy Object ------------------------->
+  ; create_obj()
    (--> (st natural_1 natural_2
             S (PObj ...)
             R M_1)
@@ -100,7 +235,7 @@
                                  (term M_1)))
         (computed-name (term (create-object Sub_2 (obj natural_2)))))
    )
-  )
+)
 
 (define (insert-priv priv matrix)
   (if (null? matrix)
