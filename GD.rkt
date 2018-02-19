@@ -1,6 +1,24 @@
 #lang scheme
 (require redex)
 
+;;; TO DO LIST
+; - Basic Rights (Done)
+; - Administrative Rights
+;;; - grant_control
+;;; - grant_own
+;;; - transfer_own
+; - Create/Delete Obj 
+;;; - destroy_object
+;;; - destroy_subject
+; - Well-formness 
+;;; GDWF1
+;;; GDWF2
+;;; GDWF3
+;;; GDWF4
+;;; GDWF5
+;;; GDWF6
+;;; GDWF7
+
 (define-language GD
   [Sub   (sub natural)]
   [PObj  (obj natural)]
@@ -220,21 +238,44 @@
   )
 
   ; <------------------------- BEGIN: Administrative Rights ------------------------->
+  ; grant_control(i,s,o)
+
+  ; grant_own(i,s,o)
+
+  ; transfer_own(i,s,o)
+  (--> (st)
   
+  )
 
   ; <------------------------- BEGIN: Create/Destroy Object ------------------------->
-  ; create_obj()
-   (--> (st natural_1 natural_2
-            S (PObj ...)
-            R M_1)
-        (st natural_1 ,(+ 1 (term natural_2))
-            S (PObj ... (obj natural_2))
-            R M_2)
-        (where (Sub_1 ... Sub_2 Sub_3 ...) S)
-        (where M_2 ,(insert-priv (term (Sub_2 own (obj natural_2)))
-                                 (term M_1)))
-        (computed-name (term (create-object Sub_2 (obj natural_2)))))
-   )
+  ; create_object(i,o)
+  (--> (st natural_1 natural_2
+          S (PObj ...)
+          R M_1)
+       (st natural_1 ,(+ 1 (term natural_2))
+          S (PObj ... (obj natural_2))
+          R M_2)
+       (where (Sub_1 ... Sub_2 Sub_3 ...) S)
+       (where M_2 ,(insert-priv (term (Sub_2 own (obj natural_2)))
+                                (term M_1)))
+       (computed-name (term (create-object Sub_2 (obj natural_2))))
+  )
+
+; create_subject(i,s)
+  (--> (st natural_1 natural_2 (Sub ...) O R M_1)
+       ; Increment SubCount by 1, add another Sub into S
+       (st ,(+ 1 (term natural_1)) natural_2 (Sub ... (sub natural_1)) O R M_2)
+
+       ; Find any Sub_1 (i)
+       (where (Sub_2 ... Sub_1 Sub_3 ...) (Sub ...))
+       
+       ; Insert (Sub_1 own (new sub)) and ((new sub) control (new sub)) into M_2
+       (where M_2 ,(insert-priv (term ((sub natural_1) control (sub natural_1))) (insert-priv (term (Sub_1 own (sub natural_1)) (term M_1)))))
+
+       ; Give this transition a name
+       (computed-name (term (create-subject Sub_1 (sub natural_1))))
+  )
+  )
 )
 
 (define (insert-priv priv matrix)
