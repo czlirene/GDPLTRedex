@@ -2,15 +2,16 @@
 (require redex)
 
 ;;; TO DO LIST
+; + Root Subject
+;;; - Root in insert-priv
 ; - Basic Rights (Done)
-; - Administrative Rights
+; + Administrative Rights
 ;;; - grant_control
-;;; - grant_own
 ;;; - transfer_own
-; - Create/Delete Obj 
+; + Create/Delete Obj 
 ;;; - destroy_object
 ;;; - destroy_subject
-; - Well-formness 
+; + Well-formness 
 ;;; GDWF1
 ;;; GDWF2
 ;;; GDWF3
@@ -20,7 +21,10 @@
 ;;; GDWF7
 
 (define-language GD
-  [Sub   (sub natural)]
+  [Root  root]
+  [NRSub (sub natural)]
+  [Sub   Root
+         NRSub]
   [PObj  (obj natural)]
   [Obj   Sub
          PObj]
@@ -56,6 +60,11 @@
 (define m2 (term ((,s0 (trans ,r1) ,o0) (,s1 ,r2 ,o1) (,s1 own ,o2))))
 (define m3 (term ((,s0 (trans ,r1) ,o0) (,s1 ,r1 ,o0) (,s1 ,r2, o1))))
 (define m4 (term ((,s0 (trans ,r1) ,o0) (,s0 own ,o3) (,s1 ,r2 ,o1) (,s1 own ,o2))))
+
+; s0 own o0, s0 own o1, s0 own s1, s0 tRead o0, s1 read o1
+(define m5 (term ((,s0 own ,o0) (,s0 own ,o1) (,s0 own ,s1) (,s0 (trans ,r1) ,o0) (,s1 ,r1 ,o1))))
+; s0 own o0, s0 own o1, s0 own s1, s0 tRead o0 
+(define m6 (term ((,s0 own ,o0) (,s0 own ,o1) (,s0 own ,s1) (,s0 (trans ,r1) ,o0) )))
 
 
 (module+ test
@@ -95,6 +104,9 @@
 (define st4
   (term (st 2 4 (,s0 ,s1) (,o0 ,o1 ,o2 ,o3) ,br ,m4)))
 
+;;; Testing delete_r(Own)
+(define st5 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m5)))
+(define st6 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m6)))
 
 (define red
   (reduction-relation GD
@@ -136,7 +148,7 @@
        (where M_2 ,(remove (term (Sub_2 BR Obj)) (term M_1)))
 
        ; Give this transition a name
-       (computed-name (term (remove_own BR Sub_1 Sub_2 Obj)))
+       (computed-name (term (remove-own BR Sub_1 Sub_2 Obj)))
   )
 
   ; delete_r [CONTROL] (i,s,o)
@@ -154,7 +166,7 @@
        (where M_2 ,(remove (term (Sub_2 BR Obj)) (term M_1)))
 
        ; Give this transition a name
-       (computed-name (term (remove_control BR Sub_1 Sub_2 Obj)))
+       (computed-name (term (remove-control BR Sub_1 Sub_2 Obj)))
   )
 
   ; transfer_r(i,s,o)
@@ -201,7 +213,7 @@
        (where M_2 ,(remove (term (Sub_2 (trans BR) Obj)) (term M_1)))
 
        ; Give this transition a name
-       (computed-name (term (remove_own (trans BR) Sub_1 Sub_2 Obj)))
+       (computed-name (term (remove-own (trans BR) Sub_1 Sub_2 Obj)))
   )
 
   ; delete_r* [CONTROL] (i,s,o)
@@ -219,7 +231,7 @@
        (where M_2 ,(remove (term (Sub_2 (trans BR) Obj)) (term M_1)))
 
        ; Give this transition a name
-       (computed-name (term (remove_control (trans BR) Sub_1 Sub_2 Obj)))
+       (computed-name (term (remove-control (trans BR) Sub_1 Sub_2 Obj)))
   )
 
   ; transfer_r*(i,s,o)
@@ -241,11 +253,24 @@
   ; grant_control(i,s,o)
 
   ; grant_own(i,s,o)
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; Find any PObj (o)
+       (where (Obj_1 ... PObj Obj_2 ...) O)
+       ; Find a Sub_1 (i) that owns PObj(o)
+       (where (Priv_1 ... (Sub_1 own PObj) Priv_2 ...) M_1)
+       ; Find any Sub_2 (s)
+       (where (Sub_3 ... Sub_2 Sub_4 ...) S)
+       
+       ; Insert priv, assign it to M_2
+       (where M_2 ,(insert-priv (term (Sub_2 own PObj)) (term M_1)))
+
+       ; Give this trnx a name
+       (computed-name (term (grant-own Sub_1 Sub_2 PObj))))
+  )
 
   ; transfer_own(i,s,o)
-  (--> (st)
-  
-  )
 
   ; <------------------------- BEGIN: Create/Destroy Object ------------------------->
   ; create_object(i,o)
@@ -270,11 +295,15 @@
        (where (Sub_2 ... Sub_1 Sub_3 ...) (Sub ...))
        
        ; Insert (Sub_1 own (new sub)) and ((new sub) control (new sub)) into M_2
-       (where M_2 ,(insert-priv (term ((sub natural_1) control (sub natural_1))) (insert-priv (term (Sub_1 own (sub natural_1)) (term M_1)))))
+       (where M_2 ,(insert-priv (term ((sub natural_1) control (sub natural_1))) (insert-priv (term (Sub_1 own (sub natural_1))) (term M_1))))
 
        ; Give this transition a name
        (computed-name (term (create-subject Sub_1 (sub natural_1))))
   )
+
+  ; destroy_object(i,o)
+
+  ; destroy_subject(i,s)
   )
 )
 
@@ -326,6 +355,8 @@
   (test-->>E #:steps 1 red st1 st2)
   (test-->>E #:steps 1 red st2 st4)
   (test-->>E #:steps 2 red st1 st4)
+  (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
+  (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
 )
 
 (define (well-formed-so-list? so-count so-list)
@@ -371,6 +402,22 @@
          (well-formed-priv-list? sub-list obj-list priv-list)
          (sorted-priv-list? priv-list))))
 
+; <------------------------- BEGIN: GD-WF-# ------------------------->
+; 1. Every PObj is owned by at least one Sub
+
+; 2. No PObj is controlled
+(define (gd-wf-2? obj-list priv-list)
+  (or (null? priv-list)
+      (let* ([priv (first priv-list)]
+             [right (second priv)]
+             [obj (third priv)])
+          (and (member obj obj-list)
+               (not (eq? right control))
+               (gd-wf-2? obj-list (rest priv-list))
+          )
+      )
+  )
+)
 
 (module+ test
   (test-equal (well-formed-state? st1) #true)
