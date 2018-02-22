@@ -660,6 +660,52 @@
 ;;;   )
 ;;; )
 
+; 3. Every subject controls itself
+(define subjectlist (term (,s0 ,s1 ,s2)))
+(define privlist (term ((,s1 control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
+
+(define (sub-control-sub? sub-list priv-list)
+  (if (or (null? sub-list)
+          (null? (rest sub-list)))
+      #true
+      (and
+        (contains-sub-control-sub? (car sub-list) priv-list)
+        (sub-control-sub? (cdr sub-list) priv-list)
+      )
+  )
+)
+; (trace sub-control-sub?)
+
+(define (contains-sub-control-sub? sub priv-list)
+  ; if we reached the end, and still haven't returned true, then it doesn't exist
+  (if (null? priv-list)
+      #false
+      (let ([priv (first priv-list)])
+        (let ([s1 (first priv)]
+              [r1 (second priv)]
+              [o1 (third priv)])
+          (cond 
+            ; if r1 = control, s1 = o1 = sub, then return true
+            [(and (eqv? r1 'control)
+                  (eqv? s1 o1)
+                  (eqv? s1 sub)) #true]
+            ; otherwise, check next element
+            [else (contains-sub-control-sub? sub (cdr priv-list))]      
+          )
+        )
+      )
+  )
+)
+; (trace contains-sub-control-sub?)
+
+; 4. Root exists, and it is not owned or controlled by anybody. It is controlled by itself.insert-priv
+
+; 5. All nonroot sub has only 1 owner, no nonroot owns itself.
+
+; 6. Every nonroot has at most 1 other controller other than itself
+
+; 7. No cycles in subject ownership
+
 (module+ test
   (test-equal (well-formed-state? st1) #true)
   (test-equal (well-formed-state? st2) #true)
