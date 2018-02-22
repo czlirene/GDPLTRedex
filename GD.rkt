@@ -644,6 +644,52 @@
 
 ; <------------------------- BEGIN: GD-WF-# ------------------------->
 ; 1. Every PObj is owned by at least one Sub
+(define (gd-wf-1? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+    (are-all-obj-owned? obj-list priv-list)
+  )
+)
+
+; (define objlist (term (,o0 ,o1 ,o2)))
+; (define objlist2 (term (,o0 ,o1)))
+
+; (define truelist (term ((,s1 control ,o2) (,s1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
+; (define falselist (term ((,s1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
+
+(define (are-all-obj-owned? obj-list priv-list)
+  (if (null? obj-list)
+      #true
+      (let ([obj (first obj-list)])
+          (and 
+            (is-obj-owned? obj priv-list)
+            (are-all-obj-owned? (rest obj-list) priv-list)
+          )
+      )
+  )
+)
+
+(define (is-obj-owned? obj priv-list)     
+  ; if it's the end of the priv-list, and no true is returned, then it's not being owned
+  (if (null? priv-list)
+      #false
+      (let ([priv (first priv-list)])
+        (let ([s1 (first priv)]
+              [r1 (second priv)]
+              [o1 (third priv)])
+              (cond 
+                ; if r1 = own, and o1 = obj, then x own obj. so it's being owned
+                [(and (eqv? r1 'own)
+                      (eqv? o1 obj))    #true]
+                [else (is-obj-owned? obj (rest priv-list))]
+              )
+        )
+      )
+  )
+)
 
 ; 2. No PObj is controlled
 (define (gd-wf-2? state)
@@ -656,9 +702,9 @@
   )        
 )
 
-(define objlist (term (,o0 ,o1 ,o2)))
-(define privlist (term ((,s1 control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
-(define privlist2 (term ((,s1 control ,s1) (,s0 control ,o1) (,s2 control ,s2))))
+; (define objlist (term (,o0 ,o1 ,o2)))
+; (define privlist (term ((,s1 control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
+; (define privlist2 (term ((,s1 control ,s1) (,s0 control ,o1) (,s2 control ,s2))))
 
 (define (no-obj-controlled? obj-list priv-list)
   ; if we're at the end of the priv-list, and no false has been returned, no obj is being controlled
@@ -678,7 +724,6 @@
       )
   )
 )
-
 
 ; 3. Every subject controls itself ( done)
 ; (define subjectlist (term (,s0 ,s1 ,s2)))
