@@ -10,8 +10,6 @@
 ;;; - transfer_own
 ; - Create/Delete Obj (done)
 ; + Well-formness 
-;;; GDWF1
-;;; GDWF2
 ;;; GDWF4
 ;;; GDWF5
 ;;; GDWF6
@@ -643,36 +641,39 @@
          (sorted-priv-list? priv-list))))
 
 ; <------------------------- BEGIN: GD-WF-# ------------------------->
-; 1. Every PObj is owned by at least one Sub
-(define (gd-wf-1? state)
-  (let ([sub-count (second state)]
-        [obj-count (third state)]
-        [sub-list (fourth state)]
-        [obj-list (fifth state)]
-        [priv-list (seventh state)])
-    (are-all-obj-owned? obj-list priv-list)
-  )
-)
+; 1. Every PObj is owned by at least one Sub (done)
+; (define (gd-wf-1? state)
+;   (let ([sub-count (second state)]
+;         [obj-count (third state)]
+;         [sub-list (fourth state)]
+;         [obj-list (fifth state)]
+;         [priv-list (seventh state)])
+;     (are-all-obj-owned? sub-list obj-list priv-list)
+;   )
+; )
 
-; (define objlist (term (,o0 ,o1 ,o2)))
-; (define objlist2 (term (,o0 ,o1)))
+(define sublist (term (,s0 ,s1 ,s2)))
+(define objlist (term (,o0 ,o1 ,o2)))
+(define objlist2 (term (,o0 ,o1)))
 
-; (define truelist (term ((,s1 control ,o2) (,s1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
-; (define falselist (term ((,s1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
+(define truelist (term ((,s1 control ,o2) (,s1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
+(define falselist2 (term ((,s1 control ,o2) (,o1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
+(define falselist (term ((,s1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
+; (define falselist2 (term ((,o1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
 
-(define (are-all-obj-owned? obj-list priv-list)
+(define (are-all-obj-owned? sub-list obj-list priv-list)
   (if (null? obj-list)
       #true
       (let ([obj (first obj-list)])
           (and 
-            (is-obj-owned? obj priv-list)
-            (are-all-obj-owned? (rest obj-list) priv-list)
+            (is-obj-owned? sub-list obj priv-list)
+            (are-all-obj-owned? sub-list (rest obj-list) priv-list)
           )
       )
   )
 )
 
-(define (is-obj-owned? obj priv-list)     
+(define (is-obj-owned? sub-list obj priv-list)     
   ; if it's the end of the priv-list, and no true is returned, then it's not being owned
   (if (null? priv-list)
       #false
@@ -681,10 +682,11 @@
               [r1 (second priv)]
               [o1 (third priv)])
               (cond 
-                ; if r1 = own, and o1 = obj, then x own obj. so it's being owned
+                ; if r1 = own, x in sub-list, and o1 = obj, then x own obj. so it's being owned by a subject
                 [(and (eqv? r1 'own)
-                      (eqv? o1 obj))    #true]
-                [else (is-obj-owned? obj (rest priv-list))]
+                      (eqv? o1 obj)
+                      (memv s1 sub-list))    #true]
+                [else (is-obj-owned? sub-list obj (rest priv-list))]
               )
         )
       )
