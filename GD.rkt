@@ -7,7 +7,6 @@
 ;;; - Root in insert-priv
 ; - Basic Rights (Done)
 ; + Administrative Rights
-;;; - grant_control
 ;;; - transfer_own
 ; - Create/Delete Obj (done)
 ; + Well-formness 
@@ -44,6 +43,7 @@
 
 (define s0 (term (sub 0)))
 (define s1 (term (sub 1)))
+(define s2 (term (sub 2)))
 
 (define o0 (term (obj 0)))
 (define o1 (term (obj 1)))
@@ -384,7 +384,6 @@
   )
 )
 
-
 ;  <------------------------- BEGIN: Helper Functions ------------------------->
 (define (insert-control sub obj matrix)
   (case (check-control sub obj matrix)
@@ -398,7 +397,7 @@
 (define (check-control sub obj matrix)
   ; if we reached the end of the matrix, then that means no other ctrler is found
   (if (or (null? matrix)
-          (null? rest matrix))
+          (null? (rest matrix)))
       (term 0)
       ; otherwise
       (case (find-control sub obj (first matrix))
