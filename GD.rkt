@@ -10,7 +10,6 @@
 ;;; - transfer_own
 ; - Create/Delete Obj (done)
 ; + Well-formness 
-;;; GDWF4
 ;;; GDWF5
 ;;; GDWF6
 ;;; GDWF7
@@ -642,23 +641,23 @@
 
 ; <------------------------- BEGIN: GD-WF-# ------------------------->
 ; 1. Every PObj is owned by at least one Sub (done)
-; (define (gd-wf-1? state)
-;   (let ([sub-count (second state)]
-;         [obj-count (third state)]
-;         [sub-list (fourth state)]
-;         [obj-list (fifth state)]
-;         [priv-list (seventh state)])
-;     (are-all-obj-owned? sub-list obj-list priv-list)
-;   )
-; )
+(define (gd-wf-1? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+    (are-all-obj-owned? sub-list obj-list priv-list)
+  )
+)
 
-(define sublist (term (,s0 ,s1 ,s2)))
-(define objlist (term (,o0 ,o1 ,o2)))
-(define objlist2 (term (,o0 ,o1)))
+; (define sublist (term (,s0 ,s1 ,s2)))
+; (define objlist (term (,o0 ,o1 ,o2)))
+; (define objlist2 (term (,o0 ,o1)))
 
-(define truelist (term ((,s1 control ,o2) (,s1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
-(define falselist2 (term ((,s1 control ,o2) (,o1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
-(define falselist (term ((,s1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
+; (define truelist (term ((,s1 control ,o2) (,s1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
+; (define falselist2 (term ((,s1 control ,o2) (,o1 own ,o1) (,s0 own ,o0) (,s2 own ,o2))))
+; (define falselist (term ((,s1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
 ; (define falselist2 (term ((,o1 own ,o0) (,s0 own ,o1) (,s2 control ,s2))))
 
 (define (are-all-obj-owned? sub-list obj-list priv-list)
@@ -775,7 +774,52 @@
 )
 ; (trace contains-sub-control-sub?)
 
-; 4. Root exists, and it is not owned or controlled by anybody. It is controlled by itself.insert-priv
+(define privlist (term ((root control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
+(define stWF4T (term (st 3 2 (root ,s0 ,s1) (,o0 ,o1) ,br ,privlist)))
+
+(define privlistF (term ((,s1 control root) (,s0 control ,s0) (,s2 control ,s2))))
+
+; 4. Root exists, and it is not owned or controlled by anybody. It is controlled by itself.
+(define (gd-wf-4? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+
+    (and (is-root-a-sub? sub-list)
+         (not (is-root-controlled-by-others? priv-list))
+    )
+  )
+)
+
+(define (is-root-a-sub? sub-list)
+  (if (null? sub-list)
+      #false
+      (memv 'root sub-list)
+  )
+)
+
+(define (is-root-controlled-by-others? priv-list)
+  ; reached the end of the matrix, nobody else controls root
+  (if (null? priv-list)
+      #false
+      (let ([priv (first priv-list)])
+          (let ([s1 (first priv)]
+                [r1 (second priv)]
+                [o1 (third priv)])
+                (cond
+                  ;if r1 = control, s1 != o1, and o1 = root -> someone else controls root returns true
+                  [(and (eqv? r1 'control)
+                        (not (eqv? s1 o1))
+                        (eqv? o1 'root))      #true]
+                  [else (is-root-controlled-by-others? (rest priv-list))]
+                )
+
+          )
+      )
+  )
+)
 
 ; 5. All nonroot sub has only 1 owner, no nonroot owns itself.
 
