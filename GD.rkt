@@ -9,9 +9,7 @@
 ; + Administrative Rights
 ;;; - grant_control
 ;;; - transfer_own
-; + Create/Delete Obj 
-;;; - destroy_object (WORKS IN THEORY)
-;;; - destroy_subject
+; - Create/Delete Obj (done)
 ; + Well-formness 
 ;;; GDWF1
 ;;; GDWF2
@@ -72,6 +70,7 @@
 (define m7 (term ((,s0 own ,o0) (,s0 ,r1 ,o0) (,s0 ,r1 ,o1) (,s1 own ,s0) (,s1 ,r2 ,o1))))
 
 (define m9 (term ((,s1 own ,o0) (,s1 ,r2 ,o1))))
+
 ; s0 read o1, s1 write o1
 (define m8 (term ((,s0 ,r1 ,o1) (,s1 ,r2 ,o1))))
 
@@ -114,15 +113,21 @@
   (term (st 2 4 (,s0 ,s1) (,o0 ,o1 ,o2 ,o3) ,br ,m4)))
 
 ;;; Testing delete_r(Own)
-(define st5 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m5)))
-(define st6 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m6)))
+(define st5 
+  (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m5)))
+(define st6 
+  (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m6)))
 
 ;;; Testing destroy-obj
-(define st7 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m7)))
-(define st8 (term (st 2 1 (,s0 ,s1) (,o1)     ,br ,m8)))
+(define st7 
+  (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m7)))
+
+(define st8 
+  (term (st 2 1 (,s0 ,s1) (,o1)     ,br ,m8)))
 
 ;;; Testing destroy-sub
-(define st9 (term (st 1 2 (,s1) (,o0 ,o1) ,br ,m9)))
+(define st9 
+  (term (st 1 2 (,s1) (,o0 ,o1) ,br ,m9)))
 
 (define red
   (reduction-relation GD
@@ -267,6 +272,7 @@
 
   ; <------------------------- BEGIN: Administrative Rights ------------------------->
   ; grant_control(i,s,o)
+  ;;; TODO
 
   ; grant_own(i,s,o)
   (--> (st natural_1 natural_2 S O R M_1)
@@ -287,13 +293,14 @@
   
 
   ; transfer_own(i,s,o)
+  ;;; TODO
 
   ; <------------------------- BEGIN: Create/Destroy Object ------------------------->
   ; create_object(i,o)
   (--> (st natural_1 natural_2
           S (PObj ...)
           R M_1)
-       (st natural_1 ,(+ 1 (term natural_2))
+       (st natural_1 ,(+  1 (term natural_2))
           S (PObj ... (obj natural_2))
           R M_2)
        (where (Sub_1 ... Sub_2 Sub_3 ...) S)
@@ -320,7 +327,7 @@
   ; destroy_object(i,o)
   (--> (st natural_1 natural_2 S O_1 R M_1)
        ; Decrement ObjCount by 1, 
-       (st natural_1 (- 1 (term natural_2)) S O_2 R M_2)
+       (st natural_1 ,(- (term natural_2) 1) S O_2 R M_2)
 
        ; Find any Obj (o)
        (where (PObj_1 ... Obj PObj_2 ...) O_1)
@@ -339,7 +346,11 @@
 
   ; destroy_subject(i,s)
   (--> (st natural_1 natural_2 S_1 O R M_1)
-       (st (- 1 (term natural_1)) natural_2 S_2 O R M_2)
+       (st ,(- (term natural_1) 1) natural_2 S_2 O R M_2)
+
+       ; For every Sub_1 and Sub_2 that are Subjects
+       (where (Sub_X ... Sub_2 Sub_Y ...) S_1)
+       (where (Sub_Z ... Sub_1 Sub_V ...) S_1)
 
        ; Find a Sub_1 (i) that owns Sub_2 (s)
        (where (Priv_1 ... (Sub_1 own Sub_2) Priv_2 ...) M_1)
@@ -365,11 +376,12 @@
       (remove null matrix)
       (let ([own-list (list-sub-own del matrix)])
           (let ([new-own-matrix (add-sub-own sub own-list matrix)])
-              (remove-sub sub new-own-matrix)
+              (remove-sub del new-own-matrix)
           )
       )
   )
 )
+(trace replace-sub)
 
 ; for every obj in obj-list, insert priv
 (define (add-sub-own sub obj-list matrix)
@@ -397,6 +409,7 @@
       )
   )
 )
+;;; (trace list-sub-own)
 
 (define (find-sub-own sub priv)
   (if (null? priv)
@@ -427,6 +440,7 @@
       )
   )
 )
+(trace remove-sub)
 
 (define (find-sub sub priv)
   (if (null? priv)
@@ -439,11 +453,12 @@
                 (eqv? s1 sub)
                 (and (eqv? r1 'own)
                      (eqv? o1 sub))) -1]
-            [else              +1]
+            [else                    +1]
           )
       )
   )
 )
+(trace find-sub)
 
 (define (remove-obj obj matrix)
   (if (null? matrix)
@@ -517,12 +532,12 @@
 
 
 (module+ test
-  (test-->>E #:steps 1 red st1 st3)
-  (test-->>E #:steps 1 red st1 st2)
-  (test-->>E #:steps 1 red st2 st4)
-  (test-->>E #:steps 2 red st1 st4)
-  (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
-  (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
+  ;;; (test-->>E #:steps 1 red st1 st3)
+  ;;; (test-->>E #:steps 1 red st1 st2)
+  ;;; (test-->>E #:steps 1 red st2 st4)
+  ;;; (test-->>E #:steps 2 red st1 st4)
+  ;;; (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
+  ;;; (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
 ;  (test-->>E #:steps 1 red st7 st8)     ; testing destroy-obj
   (test-->>E #:steps 1 red st7 st9)
 )
