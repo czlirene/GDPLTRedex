@@ -12,7 +12,6 @@
 ; + Well-formness 
 ;;; GDWF1
 ;;; GDWF2
-;;; GDWF3
 ;;; GDWF4
 ;;; GDWF5
 ;;; GDWF6
