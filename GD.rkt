@@ -646,22 +646,53 @@
 ; 1. Every PObj is owned by at least one Sub
 
 ; 2. No PObj is controlled
-;;; (define (gd-wf-2? obj-list priv-list)
-;;;   (or (null? priv-list)
-;;;       (let* ([priv (first priv-list)]
-;;;              [right (second priv)]
-;;;              [obj (third priv)])
-;;;           (and (member obj obj-list)
-;;;                (not (eq? right control))
-;;;                (gd-wf-2? obj-list (rest priv-list))
-;;;           )
-;;;       )
-;;;   )
-;;; )
+(define (gd-wf-2? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+    (no-obj-controlled? obj-list priv-list)
+  )        
+)
 
-; 3. Every subject controls itself
-(define subjectlist (term (,s0 ,s1 ,s2)))
+(define objlist (term (,o0 ,o1 ,o2)))
 (define privlist (term ((,s1 control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
+(define privlist2 (term ((,s1 control ,s1) (,s0 control ,o1) (,s2 control ,s2))))
+
+(define (no-obj-controlled? obj-list priv-list)
+  ; if we're at the end of the priv-list, and no false has been returned, no obj is being controlled
+  (if (null? priv-list)
+      #true
+      (let ([priv (first priv-list)])
+        (let ([s1 (first priv)]
+              [r1 (second priv)]
+              [o1 (third priv)])
+          (cond 
+            ; if r1 = control, and o1 is in obj-list, then (SUB_X control obj) [ VIOLATION ]
+            [(and (eqv? r1 'control)
+                  (memv o1 obj-list))   #false]
+            [else (no-obj-controlled? obj-list (rest priv-list))]
+          )
+        )
+      )
+  )
+)
+
+
+; 3. Every subject controls itself ( done)
+; (define subjectlist (term (,s0 ,s1 ,s2)))
+; (define privlist (term ((,s1 control ,s1) (,s0 control ,s0) (,s2 control ,s2))))
+
+(define (gd-wf-3? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+    (sub-control-sub? sub-list priv-list)
+  )
+)
 
 (define (sub-control-sub? sub-list priv-list)
   (if (or (null? sub-list)
