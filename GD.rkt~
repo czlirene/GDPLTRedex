@@ -1,6 +1,5 @@
 #lang scheme
 (require redex)
-(require racket/trace)
 
 ;;; TO DO LIST
 ; + Root Subject
@@ -10,7 +9,7 @@
 ;;; - grant_control
 ;;; - transfer_own
 ; + Create/Delete Obj 
-;;; - destroy_object (WORKS IN THEORY)
+;;; - destroy_object
 ;;; - destroy_subject
 ; + Well-formness 
 ;;; GDWF1
@@ -67,14 +66,6 @@
 ; s0 own o0, s0 own o1, s0 own s1, s0 tRead o0 
 (define m6 (term ((,s0 own ,o0) (,s0 own ,o1) (,s0 own ,s1) (,s0 (trans ,r1) ,o0) )))
 
-; s0 own o0, s0 read o0, s0 read o1, s1 read o0, s1 write o1
-;;; (define m7 (term ((,s0 own ,o0) (,s0 ,r1 ,o0) (,s0 ,r1 ,o1) (,s1 ,r2 ,o1))))
-(define m7 (term ((,s0 own ,o0) (,s0 ,r1 ,o0) (,s0 ,r1 ,o1) (,s1 own ,s0) (,s1 ,r2 ,o1))))
-
-(define m9 (term ((,s1 own ,o0) (,s1 ,r2 ,o1))))
-; s0 read o1, s1 write o1
-(define m8 (term ((,s0 ,r1 ,o1) (,s1 ,r2 ,o1))))
-
 
 (module+ test
   (test-equal (redex-match? GD Sub s0) #true)
@@ -116,13 +107,6 @@
 ;;; Testing delete_r(Own)
 (define st5 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m5)))
 (define st6 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m6)))
-
-;;; Testing destroy-obj
-(define st7 (term (st 2 2 (,s0 ,s1) (,o0 ,o1) ,br ,m7)))
-(define st8 (term (st 2 1 (,s0 ,s1) (,o1)     ,br ,m8)))
-
-;;; Testing destroy-sub
-(define st9 (term (st 1 2 (,s1) (,o0 ,o1) ,br ,m9)))
 
 (define red
   (reduction-relation GD
@@ -324,11 +308,11 @@
 
        ; Find any Obj (o)
        (where (PObj_1 ... Obj PObj_2 ...) O_1)
+
        ; Find any Sub_1 (i) that owns Obj
        (where (Priv_1 ... (Sub_1 own Obj) Priv_2 ...) M_1)
 
        ; Remove all the rights pertaining to Obj
-       (where M_2 ,(remove-obj (term Obj) (term M_1)))
 
        ; Update O with the new list of PObjs
        (where O_2 ,(remove (term Obj) (term O_1)))
@@ -338,116 +322,12 @@
   )
 
   ; destroy_subject(i,s)
-  (--> (st natural_1 natural_2 S_1 O R M_1)
-       (st (- 1 (term natural_1)) natural_2 S_2 O R M_2)
-
-       ; Find a Sub_1 (i) that owns Sub_2 (s)
-       (where (Priv_1 ... (Sub_1 own Sub_2) Priv_2 ...) M_1)
-
-       ; Transfer all Sub_2 own objects to Sub_1
-       (where M_2 ,(replace-sub (term Sub_1) (term Sub_2) (term M_1)))
-
-       ; Update S with the new list of subject
-       (where S_2 ,(remove (term Sub_2) (term S_1)))
-
-       ; Give this transition a name
-       (computed-name (term (destroy-subject Sub_1 Sub_2)))
-  )
-  )
-)
-
-;1 compile list of all the objs del owned
-;2 remove all rights (del r o)
-;3 insert sub own objs based on list from 1
-
-(define (replace-sub sub del matrix)
-  (if (null? matrix)
-      (remove null matrix)
-      (let ([own-list (list-sub-own del matrix)])
-          (let ([new-own-matrix (add-sub-own sub own-list matrix)])
-              (remove-sub sub new-own-matrix)
-          )
-      )
-  )
-)
-
-; for every obj in obj-list, insert priv
-(define (add-sub-own sub obj-list matrix)
-  (if (null? matrix)
-      (remove null matrix)
-      (case (null? obj-list)
-        [(#true ) matrix]
-        [(#false) (add-sub-own sub (rest obj-list) (insert-priv (list sub 'own (first obj-list)) matrix))]
-      )
-  )
-)
-;;; (trace add-sub-own)
-
-; return list of all the obj del owns
-(define (list-sub-own sub matrix)
-  (if (null? matrix)
-      (remove null matrix)
-      (case (find-sub-own sub (car matrix))
-        ; -1: Not owned by sub, remove it from matrix
-        [(-1) (list-sub-own sub (cdr matrix))]
-        ;  0: done, return matrix
-        [( 0) matrix]
-        ; +1: Owned by sub, keep it and go to next 
-        [(+1) (cons (third (car matrix)) (list-sub-own sub (cdr matrix)))]
-      )
-  )
-)
-
-(define (find-sub-own sub priv)
-  (if (null? priv)
-      (0)
-      (let ([s1 (first priv)]
-            [r1 (second priv)])
-          (cond 
-            [(and 
-              (eqv? s1 sub)
-              (eqv? r1 'own)) +1]
-            [else            -1]
-          )
-      )
-  )
-)
-
-; step2 - THIS IS THE LAST PART, will return back a SUB_2-less matrix
-(define (remove-sub sub matrix)
-  (if (null? matrix)
-      (remove null matrix)
-      (case (find-sub sub (car matrix))
-        ; -1: Remove the current priv
-        [(-1) (remove-sub sub (cdr matrix))]
-        ;  0: done, return matrix
-        [( 0) matrix]
-        ; +1: Not related to sub, go to next
-        [(+1) (cons (car matrix) (remove-sub sub (cdr matrix)))]
-      )
-  )
-)
-
-(define (find-sub sub priv)
-  (if (null? priv)
-      (0)
-      (let ([s1 (first priv)]
-            [r1 (second priv)]
-            [o1 (third priv)])
-          (cond 
-            [(or 
-                (eqv? s1 sub)
-                (and (eqv? r1 'own)
-                     (eqv? o1 sub))) -1]
-            [else              +1]
-          )
-      )
   )
 )
 
 (define (remove-obj obj matrix)
   (if (null? matrix)
-      (remove null matrix)
+      (matrix)
       (case (find-obj obj (car matrix))
         ; -1: Remove the current priv
         [(-1) (remove-obj obj (cdr matrix))]
@@ -458,20 +338,21 @@
       )
   )
 )
-;(trace remove-obj)
 
 (define (find-obj obj priv)
   (if (null? priv)
       (0)
-      (let ([o1 (third priv)])
+      (let ([s1 (first priv)]
+            [o1 (third priv)])
           (cond 
-            [(eqv? o1 obj) -1]
-            [else          +1]
+            [(or 
+              (eqv? s1 obj)
+              (eqv? o1 obj)) -1]
+            [else            +1]
           )
       )
   )
 )
-;(trace find-obj)
 
 (define (insert-priv priv matrix)
   (if (null? matrix)
@@ -523,8 +404,6 @@
   (test-->>E #:steps 2 red st1 st4)
   (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
   (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
-;  (test-->>E #:steps 1 red st7 st8)     ; testing destroy-obj
-  (test-->>E #:steps 1 red st7 st9)
 )
 
 (define (well-formed-so-list? so-count so-list)
