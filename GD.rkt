@@ -272,7 +272,23 @@
 
   ; <------------------------- BEGIN: Administrative Rights ------------------------->
   ; grant_control(i,s,o)
-  ;;; TODO
+  (--> (st natural_1 natural_2 S O R M_1)
+       (st natural_1 natural_2 S O R M_2)
+
+       ; find any Sub_O (o)
+       (where (Sub_X ... Sub_O Sub_Y ...) S)
+       ; find any Sub_S (s)
+       (where (Sub_X ... Sub_S Sub_Y ...) S)
+       ; find any Sub_1 (i) owns Sub_O (o)
+       (where (Priv_1 ... (Sub_1 own Sub_O) Priv_2 ...) M_1)
+
+       ; Insert-control
+       (where M_2 ,(insert-control (term Sub_S) (term Sub_O) (term M_1)))
+
+       ; Give this transition a name
+       (computed-name (term (grant-control Sub_1 Sub_S Sub_O)))
+
+  )
 
   ; grant_own(i,s,o)
   (--> (st natural_1 natural_2 S O R M_1)
@@ -289,7 +305,8 @@
        (where M_2 ,(insert-priv (term (Sub_2 own PObj)) (term M_1)))
 
        ; Give this trnx a name
-       (computed-name (term (grant-own Sub_1 Sub_2 PObj))))
+       (computed-name (term (grant-own Sub_1 Sub_2 PObj)))
+  )
   
 
   ; transfer_own(i,s,o)
@@ -367,6 +384,48 @@
   )
 )
 
+
+;  <------------------------- BEGIN: Helper Functions ------------------------->
+(define (insert-control sub obj matrix)
+  (case (check-control sub obj matrix)
+    ; found another controller, return matrix as it is
+    [(-1) matrix]  
+    ; No controller found, insert priv
+    [( 0) (insert-priv (list sub 'control obj) matrix)]
+  )
+)
+
+(define (check-control sub obj matrix)
+  ; if we reached the end of the matrix, then that means no other ctrler is found
+  (if (or (null? matrix)
+          (null? rest matrix))
+      (term 0)
+      ; otherwise
+      (case (find-control sub obj (first matrix))
+        ; found another controller
+        [(-1) (term -1)]
+        ; Didn't find anything yet, go to the next one
+        [(+1) (check-control sub obj (rest matrix))]
+      )
+  )
+)
+
+(define (find-control sub obj priv)
+  (let ([s1 (first priv)]
+        [r1 (second priv)]
+        [o1 (third priv)])
+    (cond 
+        ; r1 = control, o1 = obj, s1 != o1 means ANOTHER CONTROLLER
+        [(and 
+            (eqv? r1 'control)
+            (eqv? o1 obj)
+            (not (eqv? s1 o1)))   -1]
+        ; otherwise, check next
+        [else                     +1]
+    )
+  )
+)
+
 ;1 compile list of all the objs del owned
 ;2 remove all rights (del r o)
 ;3 insert sub own objs based on list from 1
@@ -381,7 +440,7 @@
       )
   )
 )
-(trace replace-sub)
+; (trace replace-sub)
 
 ; for every obj in obj-list, insert priv
 (define (add-sub-own sub obj-list matrix)
@@ -440,7 +499,7 @@
       )
   )
 )
-(trace remove-sub)
+; (trace remove-sub)
 
 (define (find-sub sub priv)
   (if (null? priv)
@@ -458,7 +517,7 @@
       )
   )
 )
-(trace find-sub)
+; (trace find-sub)
 
 (define (remove-obj obj matrix)
   (if (null? matrix)
@@ -531,16 +590,16 @@
       [else (right-comp r1 r2)])))
 
 
-(module+ test
-  ;;; (test-->>E #:steps 1 red st1 st3)
-  ;;; (test-->>E #:steps 1 red st1 st2)
-  ;;; (test-->>E #:steps 1 red st2 st4)
-  ;;; (test-->>E #:steps 2 red st1 st4)
-  ;;; (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
-  ;;; (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
-;  (test-->>E #:steps 1 red st7 st8)     ; testing destroy-obj
-  (test-->>E #:steps 1 red st7 st9)
-)
+; (module+ test
+;   ;;; (test-->>E #:steps 1 red st1 st3)
+;   ;;; (test-->>E #:steps 1 red st1 st2)
+;   ;;; (test-->>E #:steps 1 red st2 st4)
+;   ;;; (test-->>E #:steps 2 red st1 st4)
+;   ;;; (test-->>E #:steps 1 red st5 st6)     ; testing delete_r(own)
+;   ;;; (test-->>E #:steps 1 red st6 st5)     ; testing grant_r
+; ;  (test-->>E #:steps 1 red st7 st8)     ; testing destroy-obj
+;   ; (test-->>E #:steps 1 red st7 st9)
+; )
 
 (define (well-formed-so-list? so-count so-list)
   (or (null? so-list)
@@ -611,4 +670,5 @@
 
 
 (module+ test
-  (test-results))
+  (test-results)
+)
