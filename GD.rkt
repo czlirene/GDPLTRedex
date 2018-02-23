@@ -741,8 +741,7 @@
 )
 
 (define (sub-control-sub? sub-list priv-list)
-  (if (or (null? sub-list)
-          (null? (rest sub-list)))
+  (if (null? sub-list)
       #true
       (and
         (contains-sub-control-sub? (car sub-list) priv-list)
@@ -822,7 +821,122 @@
 )
 
 ; 5. All nonroot sub has only 1 owner, no nonroot owns itself.
+(define (gd-wf-5? state)
+  (let ([sub-count (second state)]
+        [obj-count (third state)]
+        [sub-list (fourth state)]
+        [obj-list (fifth state)]
+        [priv-list (seventh state)])
+    (and 
+      ; make sure nobody owns themselves, pass the sublist without root
+      (not (sub-own-themselves? (remove 'root sub-list) priv-list))
+      ; check exactly one owner 
+      (exactly-one-owner? (remove 'root sub-list) priv-list)
+    )
+  )
+)
 
+; count owner for each subject
+(define (exactly-one-owner? sub-list priv-list)
+; final number of owners = number of nonroot subjects
+  (if (eqv? (total-owners sub-list priv-list) (length sub-list))
+      #true
+      #false
+  )
+)
+
+(define sublist (term (,s0 ,s1 ,s2)))
+(define somepriv (term ( (,s0 own ,s1) (,s1 own ,s2) (,s2 own ,s0) (,s1 own ,s1) )))
+
+; get the number of total owners owning the sub-list total = |sub-list|
+(define (total-owners sub-list priv-list)
+  (if (null? sub-list)
+      (term 0)
+      (let ([sub (first sub-list)])
+        (+ (total-owners (rest sub-list) priv-list) (length (list-own-sub sub priv-list)))
+      )
+  )
+)
+
+
+(define (list-own-sub sub priv-list)
+  (if (null? priv-list)
+      (remove null priv-list)
+      (case (find-own-sub sub (first priv-list))
+        ; doesn't own sub, remove it from matrix
+        [(-1) (list-own-sub sub (rest priv-list))]
+        ; 0: return priv-list
+        [( 0) priv-list]
+        ; +1: owns sub, keep it and go to next
+        [(+1) (cons (first (first priv-list)) (list-own-sub sub (rest priv-list)))]
+      )
+  )
+)
+
+(define (find-own-sub sub priv)
+  (if (null? priv)
+      (0)
+      (let ([r1 (second priv)]
+            [o1 (third priv)])
+          (cond 
+            [(and (eqv? r1 'own)
+                  (eqv? o1 sub))  +1]
+            [else                 -1]
+          )
+      )
+  )
+)
+; check if it owns itself
+(define (sub-own-themselves? sub-list priv-list)
+  (if (null? priv-list)
+      #false
+      (let ([priv (first priv-list)])
+        (let ([s1 (first priv)]
+              [r1 (second priv)]
+              [o1 (third priv)])
+              (cond 
+                ;r1 = own, s1 = o1, and s1 is a subject 
+                [(and (eqv? r1 'own)
+                      (eqv? s1 o1)
+                      (memv s1 sub-list))     #true]
+                [else sub-own-themselves? sub-list (rest priv-list)]
+              )
+        )
+      )
+  )
+)
+;   ; end of sub-list, it doesn't own itself
+;   (if (null? sub-list)
+;       #false
+;       (let ([sub (first sub-list)])
+;           ; if there's a true anywhere, it'll return true (VIOLATION: Someone owns themselves)
+;           (or (sub-owns-itself? sub priv-list)
+;               (sub-sub-own-themselves? (rest sub-list) priv-list)
+;           )
+;       )
+;   )
+; )
+
+; (define (sub-owns-itself? sub priv-list)
+;   ; reached end of matrix, it doesn't own itself.
+;   (if (null? priv-list)
+;       #false
+;       (let ([priv (first priv-list)])
+;         (let ([s1 (first priv)]
+;               [r1 (second priv)]
+;               [o1 (third priv)])
+;               (cond
+;                 ; r1 = own, s1 = o1 = sub, then true. it owns itself
+;                 [(and (eqv? r1 'own)
+;                       (eqv? s1 o1)
+;                       (eqv? s1 sub))    #true]
+;                 ; otherwise, keep checking the next one
+;                 [else (sub-owns-itself? sub (rest priv-list))]
+;               )
+;         )
+;       )
+;   )
+; )
 ; 6. Every nonroot has at most 1 other controller other than itself
 
 ; 7. No cycles in subject ownership
